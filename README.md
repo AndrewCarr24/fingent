@@ -14,9 +14,6 @@ The differentiated piece is the retrieval tool — built on top of
   the retriever adapts to question shape (specific dollar figures and named
   line items push toward BM25; conceptual / abstract questions push toward
   semantic).
-- **Auto-query expansion**: dsRAG's auto-query helper, but routed through
-  DeepSeek instead of the legacy Claude Sonnet 3.5 wiring.
-- **Cross-call chunk dedup** within a conversation, optional.
 
 The agent itself is a small LangGraph: a router classifies intent (RAG-query
 vs simple greeting), a ReAct agent uses the retrieval tool to answer, and a
