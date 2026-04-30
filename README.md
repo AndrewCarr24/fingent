@@ -109,6 +109,27 @@ Set these env vars to override retrieval defaults (see `.env.example`):
 | `RRF_ALPHA` | `smart` | Fixed α (0..1) or `smart` (per-question) |
 | `RETRIEVAL_TOP_K` | `200` | Candidates per retriever before fusion |
 
+## Tests
+
+```bash
+uv run pytest                # unit tests: imports, graph compile, pricing math
+uv run pytest -m e2e         # end-to-end against a real KB (opt-in)
+```
+
+The e2e test in `tests/test_smoke.py` is skipped unless the following are set:
+
+```bash
+export DEEPSEEK_API_KEY=...
+export AWS_ACCESS_KEY_ID=...
+export AWS_SECRET_ACCESS_KEY=...
+export AWS_REGION=us-east-1
+export FINGENT_TEST_KB_ID=my_kb
+export FINGENT_TEST_STORE_DIR=/path/to/fingent_store
+# Optional — defaults target a known fact in MGIC's 2025 10-K:
+export FINGENT_TEST_QUESTION='What was MGIC primary IIF at year-end 2025?'
+export FINGENT_TEST_EXPECT='303.1'
+```
+
 ## Layout
 
 ```
