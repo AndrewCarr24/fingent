@@ -51,6 +51,19 @@ http = [
 fingent-build-kb = "fingent.build_kb.cli:main"
 fingent-chat = "fingent.apps.cli:main"
 
+[dependency-groups]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.24.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+markers = [
+    "e2e: end-to-end tests that hit real LLM APIs and a real KB. Opt-in via `pytest -m e2e`.",
+]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
