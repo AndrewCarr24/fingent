@@ -1,0 +1,68 @@
+[project]
+name = "fingent"
+version = "0.1.0"
+description = "LangGraph QA agent for knowledge bases — markdown → KB → ask"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [
+    { name = "Andrew Carr" },
+]
+keywords = ["rag", "langgraph", "dsrag", "knowledge-base", "agent", "bedrock", "deepseek"]
+
+dependencies = [
+    "boto3>=1.42.0",
+    # dsRAG provides the chunking, AutoContext, and BasicVectorDB / BasicChunkDB
+    # storage; FinGent layers hybrid search + smart-α + auto-query on top.
+    # https://github.com/D-Star-AI/dsRAG
+    "dsrag>=0.5.6",
+    # dsRAG hard-imports google.generativeai at module load even when no
+    # Gemini-backed component is configured. Required.
+    "google-generativeai>=0.8.6",
+    "instructor>=1.6.0",
+    "langchain>=0.3.0",
+    "langchain-aws>=0.2.0",
+    "langchain-deepseek>=1.0.1",
+    "langchain-openai>=1.2.0",
+    "langgraph>=1.0.0",
+    "langsmith>=0.1.0",
+    "loguru>=0.7.0",
+    "openai>=1.50.0",
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    "rank-bm25>=0.2.2",
+    "scikit-learn>=1.3.0",
+]
+
+[project.optional-dependencies]
+# Chainlit UI. Required only for `fingent serve` / `chainlit run apps/chainlit_app.py`.
+chainlit = [
+    "chainlit>=1.3.0",
+    "fastapi>=0.115.0",
+]
+
+# FastAPI HTTP wrapper around the agent.
+http = [
+    "fastapi>=0.115.0",
+    "uvicorn>=0.30.0",
+]
+
+[project.scripts]
+fingent-build-kb = "fingent.build_kb.cli:main"
+fingent-chat = "fingent.apps.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/fingent"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "src/fingent",
+    "apps",
+    "README.md",
+    "LICENSE",
+    ".env.example",
+]

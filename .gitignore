@@ -1,0 +1,35 @@
+# Secrets
+.env
+.env.local
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+build/
+dist/
+.eggs/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# uv lock file is committed; pip cache is not
+.pip-cache/
+pip-wheel-metadata/
+
+# Default KB store path
+fingent_store/
+*_store/
+
+# Default parsed-markdown input dir (user data)
+parsed/
+
+# Test / coverage output
+.pytest_cache/
+.coverage
+htmlcov/
