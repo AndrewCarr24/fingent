@@ -10,12 +10,25 @@ DeepSeek applies prefix caching server-side automatically; no client-
 side markers are required.
 """
 
-from langchain_core.messages import BaseMessage, SystemMessage, trim_messages
+import os
+
+from langchain_core.messages import (
+    BaseMessage,
+    HumanMessage,
+    SystemMessage,
+    trim_messages,
+)
 from langchain_core.messages.utils import count_tokens_approximately
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables import Runnable
 
 from fingent.models.factory import get_model, orchestrator_is_bedrock
+
+
+def _agent_temp() -> float:
+    """Orchestrator temperature. Production default 0.35; pinned to 0 in
+    eval runs by setting FINGENT_AGENT_TEMPERATURE=0 before import."""
+    return float(os.environ.get("FINGENT_AGENT_TEMPERATURE", "0.35"))
 from fingent.orchestrator.catalog import format_for_prompt as format_catalog
 from fingent.orchestrator.prompts import (
     AGENT_SYSTEM_PROMPT,
@@ -54,17 +67,80 @@ def get_active_tools() -> list:
 # --- History trimming + cache markers --------------------------------------
 
 def trim_history(messages: list[BaseMessage]) -> list[BaseMessage]:
-    """Cap the message history at HISTORY_TOKEN_BUDGET, keeping recent
-    turns. `start_on="human"` ensures we never strand a `ToolMessage`
-    without its preceding tool-call `AIMessage` (which would error)."""
-    return trim_messages(
-        messages,
-        max_tokens=HISTORY_TOKEN_BUDGET,
+    """Cap the message history at HISTORY_TOKEN_BUDGET while always
+    preserving the most-recent HumanMessage (the user's current question).
+
+    Why anchor: LangChain's stock `trim_messages(strategy="last")` can
+    evict the current question when tool-result tokens dominate (e.g.,
+    a fan-out across many filings). When that happens the agent enters
+    its next turn with no question to answer and falls back to its
+    persona's opener — the "I'm ready to help! What question do you
+    have?" failure mode. Pinning the most-recent HumanMessage outside
+    the trim makes that impossible.
+
+    `end_on=("human", "tool")` prevents stranding an AIMessage with
+    `tool_calls` that lost its corresponding ToolMessage(s) — most
+    providers reject that shape. (`start_on="human"` alone doesn't
+    save us: it slides forward to the first HumanMessage in the
+    *trimmed* list, which may not exist after trimming.)
+    """
+    last_human = next(
+        (i for i in range(len(messages) - 1, -1, -1)
+         if isinstance(messages[i], HumanMessage)),
+        None,
+    )
+    if last_human is None:
+        # No HumanMessage in the list — nothing to anchor.
+        return trim_messages(
+            messages,
+            max_tokens=HISTORY_TOKEN_BUDGET,
+            strategy="last",
+            token_counter=count_tokens_approximately,
+            start_on="human",
+            end_on=("human", "tool"),
+            allow_partial=False,
+        )
+
+    head = messages[:last_human]
+    tail = messages[last_human:]
+    tail_tokens = count_tokens_approximately(tail)
+
+    if tail_tokens >= HISTORY_TOKEN_BUDGET:
+        # Active turn alone exceeds budget. Keep the question; trim
+        # within the turn so we drop oldest AI/Tool messages first.
+        question = tail[0]
+        rest = tail[1:]
+        budget = max(0, HISTORY_TOKEN_BUDGET - count_tokens_approximately([question]))
+        if budget == 0 or not rest:
+            return [question]
+        kept_rest = trim_messages(
+            rest,
+            max_tokens=budget,
+            strategy="last",
+            token_counter=count_tokens_approximately,
+            # Must start on an AIMessage(tool_calls=...) — never on a
+            # bare ToolMessage, which would orphan its parent. Providers
+            # reject "Tool not preceded by tool_calls".
+            start_on="ai",
+            end_on=("human", "tool"),
+            allow_partial=False,
+        )
+        return [question] + kept_rest
+
+    # Active turn fits; trim only the older history.
+    budget = max(0, HISTORY_TOKEN_BUDGET - tail_tokens)
+    if budget == 0 or not head:
+        return tail
+    kept_head = trim_messages(
+        head,
+        max_tokens=budget,
         strategy="last",
         token_counter=count_tokens_approximately,
         start_on="human",
+        end_on=("human", "tool"),
         allow_partial=False,
     )
+    return kept_head + tail
 
 
 def _escape_braces(text: str) -> str:
@@ -130,7 +206,7 @@ def _build_agent_system(customer_name: str) -> str:
 
 
 def get_agent_chain(customer_name: str = "Guest") -> Runnable:
-    model = get_model(temperature=0.35).bind_tools(get_active_tools())
+    model = get_model(temperature=_agent_temp()).bind_tools(get_active_tools())
     system = _build_agent_system(customer_name)
     prompt = ChatPromptTemplate.from_messages(
         [_cached_system(system), MessagesPlaceholder(variable_name="messages")]
@@ -141,7 +217,7 @@ def get_agent_chain(customer_name: str = "Guest") -> Runnable:
 def get_finalize_chain(customer_name: str = "Guest") -> Runnable:
     """Agent chain WITHOUT tools bound — used to force a text answer
     when the ReAct tool-call budget is exhausted."""
-    model = get_model(temperature=0.35)
+    model = get_model(temperature=_agent_temp())
     system = _build_agent_system(customer_name) + (
         "\n\nYou have already gathered research via tool calls and your tool "
         "budget is now exhausted. Do NOT attempt any more tool calls. Produce "
