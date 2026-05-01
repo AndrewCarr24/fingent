@@ -33,3 +33,10 @@ parsed/
 .pytest_cache/
 .coverage
 htmlcov/
+
+# Chainlit local state (auto-generated; not part of the package)
+.chainlit/
+chainlit.md
+
+# Eval results (per-run CSVs + run logs are local artifacts)
+eval/results/

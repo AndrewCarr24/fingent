@@ -6,16 +6,28 @@ Usage:
 
     # Or interactive REPL (omit the question):
     fingent-chat --kb-id my_kb --store-dir ./fingent_store
+
+Environment:
+    A `.env` file in the current working directory is auto-loaded on
+    startup. `--kb-id` and `--store-dir` fall back to `FINGENT_KB_ID`
+    and `FINGENT_STORE_DIR` so common workflows don't need flags.
 """
 
 from __future__ import annotations
 
 import argparse
 import asyncio
+import os
 import sys
 import uuid
 
-from fingent.agent import Agent
+from dotenv import load_dotenv
+
+# Load .env before importing Agent so the orchestrator picks up
+# DEEPSEEK_API_KEY, AWS creds, retrieval knobs, etc.
+load_dotenv()
+
+from fingent.agent import Agent  # noqa: E402
 
 
 async def _run_one_shot(agent: Agent, question: str, conversation_id: str | None = None) -> int:
@@ -53,13 +65,13 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument(
         "--kb-id",
-        default="fingent_kb",
-        help="KB identifier (default: fingent_kb).",
+        default=os.environ.get("FINGENT_KB_ID", "fingent_kb"),
+        help="KB identifier (default: $FINGENT_KB_ID, then 'fingent_kb').",
     )
     parser.add_argument(
         "--store-dir",
-        default="./fingent_store",
-        help="Path to KB store (default: ./fingent_store).",
+        default=os.environ.get("FINGENT_STORE_DIR", "./fingent_store"),
+        help="Path to KB store (default: $FINGENT_STORE_DIR, then './fingent_store').",
     )
     parser.add_argument(
         "--customer-name",

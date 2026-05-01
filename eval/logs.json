@@ -1,0 +1,274 @@
+[
+  {
+    "name": "smartA_run1",
+    "input_df": "questions_mi.csv",
+    "agent_ts": "20260430T164249Z",
+    "rrf_alpha": "smart",
+    "hybrid_bm25": "true",
+    "retrieval_top_k": "200",
+    "orchestrator_provider": "deepseek",
+    "orchestrator_model": "deepseek-v4-flash",
+    "accuracy": 0.8462,
+    "n": 13,
+    "n_correct": 11,
+    "results_file": "results/smartA_run1_20260430T164249Z.csv",
+    "usage": {
+      "us.anthropic.claude-haiku-4-5-20251001-v1:0": {
+        "input_tokens": 10768,
+        "output_tokens": 517,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "calls": 26,
+        "cost_usd": 0.013353
+      },
+      "deepseek-v4-flash": {
+        "input_tokens": 479188,
+        "output_tokens": 9930,
+        "cache_read_tokens": 324096,
+        "cache_creation_tokens": 0,
+        "calls": 40,
+        "cost_usd": 0.038518
+      }
+    },
+    "total_cost_usd": 0.051871,
+    "run_seconds": 404.9
+  },
+  {
+    "name": "smartA_run2",
+    "input_df": "questions_mi.csv",
+    "agent_ts": "20260430T164939Z",
+    "rrf_alpha": "smart",
+    "hybrid_bm25": "true",
+    "retrieval_top_k": "200",
+    "orchestrator_provider": "deepseek",
+    "orchestrator_model": "deepseek-v4-flash",
+    "accuracy": 1.0,
+    "n": 13,
+    "n_correct": 13,
+    "results_file": "results/smartA_run2_20260430T164939Z.csv",
+    "usage": {
+      "us.anthropic.claude-haiku-4-5-20251001-v1:0": {
+        "input_tokens": 10673,
+        "output_tokens": 441,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "calls": 26,
+        "cost_usd": 0.012878
+      },
+      "deepseek-v4-flash": {
+        "input_tokens": 648348,
+        "output_tokens": 9712,
+        "cache_read_tokens": 445056,
+        "cache_creation_tokens": 0,
+        "calls": 42,
+        "cost_usd": 0.049379
+      }
+    },
+    "total_cost_usd": 0.062257,
+    "run_seconds": 406.46
+  },
+  {
+    "name": "alpha04_run1",
+    "input_df": "questions_mi.csv",
+    "agent_ts": "20260430T165628Z",
+    "rrf_alpha": "0.4",
+    "hybrid_bm25": "true",
+    "retrieval_top_k": "200",
+    "orchestrator_provider": "deepseek",
+    "orchestrator_model": "deepseek-v4-flash",
+    "accuracy": 1.0,
+    "n": 13,
+    "n_correct": 13,
+    "results_file": "results/alpha04_run1_20260430T165628Z.csv",
+    "usage": {
+      "us.anthropic.claude-haiku-4-5-20251001-v1:0": {
+        "input_tokens": 10913,
+        "output_tokens": 471,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "calls": 26,
+        "cost_usd": 0.013268
+      },
+      "deepseek-v4-flash": {
+        "input_tokens": 352852,
+        "output_tokens": 8346,
+        "cache_read_tokens": 217600,
+        "cache_creation_tokens": 0,
+        "calls": 35,
+        "cost_usd": 0.031142
+      }
+    },
+    "total_cost_usd": 0.04441,
+    "run_seconds": 271.39
+  },
+  {
+    "name": "alpha04_run2",
+    "input_df": "questions_mi.csv",
+    "agent_ts": "20260430T170103Z",
+    "rrf_alpha": "0.4",
+    "hybrid_bm25": "true",
+    "retrieval_top_k": "200",
+    "orchestrator_provider": "deepseek",
+    "orchestrator_model": "deepseek-v4-flash",
+    "accuracy": 0.9231,
+    "n": 13,
+    "n_correct": 12,
+    "results_file": "results/alpha04_run2_20260430T170103Z.csv",
+    "usage": {
+      "us.anthropic.claude-haiku-4-5-20251001-v1:0": {
+        "input_tokens": 10603,
+        "output_tokens": 492,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "calls": 26,
+        "cost_usd": 0.013063
+      },
+      "deepseek-v4-flash": {
+        "input_tokens": 771360,
+        "output_tokens": 10461,
+        "cache_read_tokens": 577792,
+        "cache_creation_tokens": 0,
+        "calls": 47,
+        "cost_usd": 0.053076
+      }
+    },
+    "total_cost_usd": 0.066139,
+    "run_seconds": 380.44
+  },
+  {
+    "name": "q23_smartA_1",
+    "input_df": "questions_mi.csv",
+    "agent_ts": "20260430T193059Z",
+    "rrf_alpha": "smart",
+    "hybrid_bm25": "true",
+    "retrieval_top_k": "200",
+    "orchestrator_provider": "deepseek",
+    "orchestrator_model": "deepseek-v4-flash",
+    "accuracy": 0.7391,
+    "n": 23,
+    "n_correct": 17,
+    "results_file": "results/q23_smartA_1_20260430T193059Z.csv",
+    "usage": {
+      "us.anthropic.claude-haiku-4-5-20251001-v1:0": {
+        "input_tokens": 22892,
+        "output_tokens": 942,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "calls": 46,
+        "cost_usd": 0.027602
+      },
+      "deepseek-v4-flash": {
+        "input_tokens": 1423155,
+        "output_tokens": 31385,
+        "cache_read_tokens": 864640,
+        "cache_creation_tokens": 0,
+        "calls": 78,
+        "cost_usd": 0.125716
+      }
+    },
+    "total_cost_usd": 0.153318,
+    "run_seconds": 998.6
+  },
+  {
+    "name": "q23_smartA_2",
+    "input_df": "questions_mi.csv",
+    "agent_ts": "20260430T194740Z",
+    "rrf_alpha": "smart",
+    "hybrid_bm25": "true",
+    "retrieval_top_k": "200",
+    "orchestrator_provider": "deepseek",
+    "orchestrator_model": "deepseek-v4-flash",
+    "accuracy": 0.8261,
+    "n": 23,
+    "n_correct": 19,
+    "results_file": "results/q23_smartA_2_20260430T194740Z.csv",
+    "usage": {
+      "us.anthropic.claude-haiku-4-5-20251001-v1:0": {
+        "input_tokens": 23494,
+        "output_tokens": 926,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "calls": 46,
+        "cost_usd": 0.028124
+      },
+      "deepseek-v4-flash": {
+        "input_tokens": 1541011,
+        "output_tokens": 38055,
+        "cache_read_tokens": 928768,
+        "cache_creation_tokens": 0,
+        "calls": 77,
+        "cost_usd": 0.139151
+      }
+    },
+    "total_cost_usd": 0.167275,
+    "run_seconds": 1028.99
+  },
+  {
+    "name": "q23_alpha04_1",
+    "input_df": "questions_mi.csv",
+    "agent_ts": "20260430T200452Z",
+    "rrf_alpha": "0.4",
+    "hybrid_bm25": "true",
+    "retrieval_top_k": "200",
+    "orchestrator_provider": "deepseek",
+    "orchestrator_model": "deepseek-v4-flash",
+    "accuracy": 0.913,
+    "n": 23,
+    "n_correct": 21,
+    "results_file": "results/q23_alpha04_1_20260430T200452Z.csv",
+    "usage": {
+      "us.anthropic.claude-haiku-4-5-20251001-v1:0": {
+        "input_tokens": 23073,
+        "output_tokens": 866,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "calls": 46,
+        "cost_usd": 0.027403
+      },
+      "deepseek-v4-flash": {
+        "input_tokens": 1667336,
+        "output_tokens": 34273,
+        "cache_read_tokens": 1063168,
+        "cache_creation_tokens": 0,
+        "calls": 90,
+        "cost_usd": 0.140645
+      }
+    },
+    "total_cost_usd": 0.168048,
+    "run_seconds": 919.18
+  },
+  {
+    "name": "q23_alpha04_2",
+    "input_df": "questions_mi.csv",
+    "agent_ts": "20260430T202014Z",
+    "rrf_alpha": "0.4",
+    "hybrid_bm25": "true",
+    "retrieval_top_k": "200",
+    "orchestrator_provider": "deepseek",
+    "orchestrator_model": "deepseek-v4-flash",
+    "accuracy": 0.8696,
+    "n": 23,
+    "n_correct": 20,
+    "results_file": "results/q23_alpha04_2_20260430T202014Z.csv",
+    "usage": {
+      "us.anthropic.claude-haiku-4-5-20251001-v1:0": {
+        "input_tokens": 23030,
+        "output_tokens": 880,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "calls": 46,
+        "cost_usd": 0.02743
+      },
+      "deepseek-v4-flash": {
+        "input_tokens": 1927369,
+        "output_tokens": 42538,
+        "cache_read_tokens": 1330304,
+        "cache_creation_tokens": 0,
+        "calls": 98,
+        "cost_usd": 0.153546
+      }
+    },
+    "total_cost_usd": 0.180976,
+    "run_seconds": 1030.08
+  }
+]
