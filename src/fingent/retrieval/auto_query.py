@@ -79,10 +79,11 @@ def get_search_queries(
     """Decompose a user question into a small set of independent KB search
     queries via a single LLM call."""
     client = _get_auto_query_client()
+    seed_env = os.environ.get("FINGENT_SEED")
     resp = client.chat.completions.create(
         model="deepseek-chat",
         max_tokens=400,
-        temperature=0.2,
+        temperature=float(os.environ.get("FINGENT_AUTO_QUERY_TEMPERATURE", "0.2")),
         response_model=_Queries,
         messages=[
             {
@@ -94,5 +95,6 @@ def get_search_queries(
             },
             {"role": "user", "content": user_input},
         ],
+        **({"seed": int(seed_env)} if seed_env is not None else {}),
     )
     return resp.queries[:max_queries]

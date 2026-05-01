@@ -8,12 +8,15 @@ a sensible prior if the per-question call fails.
 from __future__ import annotations
 
 import os
+import re
 
 from langsmith import traceable
 from langsmith.wrappers import wrap_openai
 from loguru import logger
 
 from fingent.retrieval.kb import _configure_deepseek_as_openai
+
+_FLOAT_RE = re.compile(r"[-+]?\d*\.?\d+")
 
 
 _smart_alpha_client = None
@@ -65,25 +68,34 @@ def smart_rrf_alpha(query: str) -> float:
     Used when env RRF_ALPHA=smart (the default). Falls back to 0.4 on
     any error.
     """
+    text = ""
     try:
         from fingent.config import settings
 
         client = _get_smart_alpha_client()
-        # deepseek-v4-flash is a reasoning model — it spends tokens on
-        # hidden reasoning_content before emitting visible content. Cap
-        # at 256 so the visible answer (a single float) actually fits.
+        # deepseek-v4-flash is a reasoning model — visible content comes
+        # AFTER hidden reasoning_content. 1024 leaves comfortable
+        # headroom for the reasoning trace + the float we actually want.
+        seed_env = os.environ.get("FINGENT_SEED")
         resp = client.chat.completions.create(
             model=settings.DEEPSEEK_MODEL_ID,
-            max_tokens=256,
+            max_tokens=1024,
             temperature=0.0,
             messages=[
                 {"role": "system", "content": _SMART_ALPHA_SYSTEM},
                 {"role": "user", "content": query},
             ],
+            **({"seed": int(seed_env)} if seed_env is not None else {}),
         )
         text = (resp.choices[0].message.content or "").strip()
-        alpha = float(text)
+        match = _FLOAT_RE.search(text)
+        if not match:
+            raise ValueError(f"no float found in response: {text!r}")
+        alpha = float(match.group())
         return max(0.0, min(1.0, alpha))
     except Exception as e:
-        logger.warning(f"smart_rrf_alpha failed ({e}); defaulting to 0.4")
+        logger.warning(
+            f"smart_rrf_alpha failed ({e}); response text was {text!r}; "
+            f"defaulting to 0.4"
+        )
         return 0.4

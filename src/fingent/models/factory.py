@@ -2,6 +2,7 @@
 always runs on Bedrock Haiku so intent classification stays consistent
 across orchestrator experiments."""
 
+import os
 from typing import Any
 
 from langchain_aws import ChatBedrockConverse
@@ -9,6 +10,14 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage
 
 from fingent.config import settings
+
+
+def _seed_kwargs() -> dict:
+    """If FINGENT_SEED is set, return {'seed': int(it)} for OpenAI-compatible
+    LLM constructors. Empty dict otherwise. DeepSeek honors `seed` (best-effort
+    determinism); Bedrock does not, so callers gate this on the DeepSeek path."""
+    s = os.environ.get("FINGENT_SEED")
+    return {"seed": int(s)} if s is not None else {}
 
 
 def extract_text_content(content: Any) -> str:
@@ -87,6 +96,7 @@ def _deepseek(model_id: str, temperature: float) -> BaseChatModel:
         temperature=temperature,
         api_key=settings.DEEPSEEK_API_KEY,
         api_base=settings.DEEPSEEK_BASE_URL,
+        **_seed_kwargs(),
     )
 
 
