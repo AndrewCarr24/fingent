@@ -9,10 +9,25 @@ time, not env-driven, so the same FinGent install can address multiple
 KBs.
 """
 
+from pathlib import Path
 from typing import Literal
 
+from dotenv import load_dotenv
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+# Sync .env into os.environ at import time. pydantic-settings already
+# reads .env into Settings fields, but langchain-core's tracing layer
+# reads LANGSMITH_TRACING / LANGSMITH_API_KEY / LANGSMITH_PROJECT
+# directly from os.environ, so without this propagation those vars
+# stay invisible to langchain even when .env says LANGSMITH_TRACING
+# is true. load_dotenv defaults to override=False so any value the
+# user has already set in their shell wins over .env.
+# Resolve relative to this file: src/fingent/config.py → ../../.env
+_ENV_PATH = Path(__file__).resolve().parents[2] / ".env"
+if _ENV_PATH.exists():
+    load_dotenv(_ENV_PATH)
 
 
 class Settings(BaseSettings):

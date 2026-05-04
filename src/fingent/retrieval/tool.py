@@ -58,7 +58,10 @@ def search_kb(
     from fingent.retrieval.smart_alpha import smart_rrf_alpha
 
     try:
-        queries = get_search_queries(question, max_queries=6)
+        queries = get_search_queries(
+            question,
+            max_queries=int(os.environ.get("AUTO_QUERY_MAX", "3")),
+        )
     except Exception as e:
         logger.warning(f"search_kb auto-query failed: {e}")
         queries = [question]
@@ -74,14 +77,17 @@ def search_kb(
     thread_id = ((config or {}).get("configurable") or {}).get("thread_id", "_default")
 
     # Chunk dedup: when DEDUP_CHUNKS=true, exclude chunks already returned
-    # in earlier calls in this thread.
-    dedup_on = os.environ.get("DEDUP_CHUNKS", "false").lower() == "true"
+    # in earlier calls in this thread. Default true per the OPT2 sweep
+    # (~2-pp accuracy lift on the MI 23-Q eval).
+    dedup_on = os.environ.get("DEDUP_CHUNKS", "true").lower() == "true"
     seen = _SEEN_CHUNKS_PER_THREAD.setdefault(thread_id, set()) if dedup_on else None
     kb._excluded_chunks = seen if dedup_on else None
 
-    # RRF alpha: BM25 weight in fusion. Default "smart" — DeepSeek picks
-    # per question. Numeric value (e.g. "0.4") forces a static alpha.
-    alpha_raw = os.environ.get("RRF_ALPHA", "smart").strip()
+    # RRF alpha: BM25 weight in fusion. Default 0.4 — the alpha sweep
+    # showed a static 0.4 was technically the most accurate (22/23 vs
+    # 21/23 for smart). Set RRF_ALPHA="smart" to restore per-question
+    # DeepSeek selection.
+    alpha_raw = os.environ.get("RRF_ALPHA", "0.4").strip()
     if alpha_raw.lower() == "smart":
         alpha = smart_rrf_alpha(question)
         logger.info(f"search_kb: smart α={alpha:.2f} for question {question[:60]!r}")
