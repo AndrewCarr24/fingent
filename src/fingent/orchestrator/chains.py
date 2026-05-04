@@ -13,9 +13,11 @@ side markers are required.
 import os
 
 from langchain_core.messages import (
+    AIMessage,
     BaseMessage,
     HumanMessage,
     SystemMessage,
+    ToolMessage,
     trim_messages,
 )
 from langchain_core.messages.utils import count_tokens_approximately
@@ -66,33 +68,117 @@ def get_active_tools() -> list:
 
 # --- History trimming + cache markers --------------------------------------
 
-def trim_history(messages: list[BaseMessage]) -> list[BaseMessage]:
-    """Cap the message history at HISTORY_TOKEN_BUDGET while always
-    preserving the most-recent HumanMessage (the user's current question).
+# finalize_node converts every ToolMessage in the trace into a synthesized
+# HumanMessage prefixed with "[Tool result for '<name>']\n..." so the
+# no-tools finalize chain doesn't trip Bedrock's toolConfig validation.
+# A naive "anchor on the most-recent HumanMessage" rule would latch onto
+# the last tool result, leaving the original user question evictable.
+# Filter on the prefix to recognize synthesized HumanMessages.
+_TOOL_RESULT_PREFIX = "[Tool result for '"
 
-    Why anchor: LangChain's stock `trim_messages(strategy="last")` can
-    evict the current question when tool-result tokens dominate (e.g.,
-    a fan-out across many filings). When that happens the agent enters
-    its next turn with no question to answer and falls back to its
-    persona's opener — the "I'm ready to help! What question do you
-    have?" failure mode. Pinning the most-recent HumanMessage outside
-    the trim makes that impossible.
 
-    `end_on=("human", "tool")` prevents stranding an AIMessage with
-    `tool_calls` that lost its corresponding ToolMessage(s) — most
-    providers reject that shape. (`start_on="human"` alone doesn't
-    save us: it slides forward to the first HumanMessage in the
-    *trimmed* list, which may not exist after trimming.)
+def _is_original_user_message(msg: BaseMessage) -> bool:
+    """True iff `msg` is a HumanMessage produced by the user (or upstream
+    runner), not one synthesized from a ToolMessage by finalize_node."""
+    if not isinstance(msg, HumanMessage):
+        return False
+    content = msg.content
+    if isinstance(content, str):
+        return not content.startswith(_TOOL_RESULT_PREFIX)
+    return True
+
+
+def _turn_boundaries(messages: list[BaseMessage]) -> list[int]:
+    """Indices of original HumanMessages — i.e., the start of each turn."""
+    return [i for i, m in enumerate(messages) if _is_original_user_message(m)]
+
+
+def _final_text_ai(
+    messages: list[BaseMessage], start: int, end: int
+) -> int | None:
+    """Index of the last AIMessage in messages[start:end] that has no
+    tool_calls and non-empty text content. None if the turn doesn't have
+    one (interrupted, errored, or in flight)."""
+    for i in range(end - 1, start - 1, -1):
+        m = messages[i]
+        if isinstance(m, AIMessage) and not m.tool_calls and m.content:
+            content = m.content if isinstance(m.content, str) else str(m.content)
+            if content.strip():
+                return i
+    return None
+
+
+def _compact_completed_turns(messages: list[BaseMessage]) -> list[BaseMessage]:
+    """Replace each completed turn's body with just [Q, final_A].
+
+    A "completed turn" is any turn before the most recent original
+    HumanMessage — its body has been distilled into a final assistant
+    answer, and the intermediate AIMessage(tool_calls=...) "thinking"
+    messages and ToolMessage results are no longer load-bearing for
+    future turns. Compacting them away saves 10-30x tokens on
+    tool-heavy threads while preserving multi-turn coherence.
+
+    The active turn (from the last original HumanMessage onward) is
+    preserved verbatim — the ReAct loop needs to see its own in-flight
+    tool calls and results.
+
+    Turns without a final-A (interrupted / errored before producing a
+    text answer) are dropped — half a turn would only confuse the model.
     """
+    starts = _turn_boundaries(messages)
+    if not starts:
+        return list(messages)
+
+    out: list[BaseMessage] = []
+    out.extend(messages[: starts[0]])
+
+    for i in range(len(starts) - 1):
+        turn_start = starts[i]
+        turn_end = starts[i + 1]
+        final_idx = _final_text_ai(messages, turn_start, turn_end)
+        if final_idx is None:
+            continue
+        out.append(messages[turn_start])  # the question
+        out.append(messages[final_idx])  # the final answer
+
+    out.extend(messages[starts[-1]:])  # active turn verbatim
+    return out
+
+
+def trim_history(messages: list[BaseMessage]) -> list[BaseMessage]:
+    """Two-stage history condensation.
+
+    Stage 1 — Compact completed turns to [Q, final_A] pairs. Drops
+    intermediate AIMessage(tool_calls=...) and ToolMessage results that
+    were folded into the final answer. The active turn is preserved
+    verbatim so the ReAct loop sees its own tool results.
+
+    Stage 2 — If still over HISTORY_TOKEN_BUDGET, evict completed
+    (Q, A) pairs from the head, oldest-first. Pairs are evicted whole
+    (a Q without its A leaves a dangling reference).
+
+    Stage 3 — If even with no completed pairs the active turn alone
+    exceeds budget, trim within the active turn. Picks `start_on`
+    dynamically: if any AIMessage is present (normal mid-ReAct state),
+    `start_on="ai"` so ToolMessages stay paired with their parent;
+    otherwise (post-`_convert_tool_messages_to_human` state in finalize,
+    where AIMessage(tool_calls) was stripped and ToolMessages turned
+    into synthesized HumanMessages), `start_on="human"` so the
+    synthesized tool-results-as-Humans can be the kept window.
+    Without that dynamic check, the start_on="ai" constraint would
+    match nothing in the post-conversion state and finalize would lose
+    every retrieved tool result.
+    """
+    compacted = _compact_completed_turns(messages)
+
     last_human = next(
-        (i for i in range(len(messages) - 1, -1, -1)
-         if isinstance(messages[i], HumanMessage)),
+        (i for i in range(len(compacted) - 1, -1, -1)
+         if _is_original_user_message(compacted[i])),
         None,
     )
     if last_human is None:
-        # No HumanMessage in the list — nothing to anchor.
         return trim_messages(
-            messages,
+            compacted,
             max_tokens=HISTORY_TOKEN_BUDGET,
             strategy="last",
             token_counter=count_tokens_approximately,
@@ -101,46 +187,41 @@ def trim_history(messages: list[BaseMessage]) -> list[BaseMessage]:
             allow_partial=False,
         )
 
-    head = messages[:last_human]
-    tail = messages[last_human:]
+    head = compacted[:last_human]
+    tail = compacted[last_human:]
     tail_tokens = count_tokens_approximately(tail)
 
+    # Stage 3: active turn alone exceeds budget. Drop head, trim within tail.
     if tail_tokens >= HISTORY_TOKEN_BUDGET:
-        # Active turn alone exceeds budget. Keep the question; trim
-        # within the turn so we drop oldest AI/Tool messages first.
         question = tail[0]
         rest = tail[1:]
         budget = max(0, HISTORY_TOKEN_BUDGET - count_tokens_approximately([question]))
         if budget == 0 or not rest:
             return [question]
+        has_ai = any(isinstance(m, AIMessage) for m in rest)
+        start_on = "ai" if has_ai else "human"
         kept_rest = trim_messages(
             rest,
             max_tokens=budget,
             strategy="last",
             token_counter=count_tokens_approximately,
-            # Must start on an AIMessage(tool_calls=...) — never on a
-            # bare ToolMessage, which would orphan its parent. Providers
-            # reject "Tool not preceded by tool_calls".
-            start_on="ai",
+            start_on=start_on,
             end_on=("human", "tool"),
             allow_partial=False,
         )
         return [question] + kept_rest
 
-    # Active turn fits; trim only the older history.
-    budget = max(0, HISTORY_TOKEN_BUDGET - tail_tokens)
-    if budget == 0 or not head:
-        return tail
-    kept_head = trim_messages(
-        head,
-        max_tokens=budget,
-        strategy="last",
-        token_counter=count_tokens_approximately,
-        start_on="human",
-        end_on=("human", "tool"),
-        allow_partial=False,
-    )
-    return kept_head + tail
+    # Stage 2: active turn fits. After compaction, head is structured
+    # as [H, A, H, A, ...] from completed turns. Evict oldest pairs whole.
+    budget = HISTORY_TOKEN_BUDGET - tail_tokens
+    while head and count_tokens_approximately(head) > budget:
+        next_h = next(
+            (i for i in range(1, len(head)) if _is_original_user_message(head[i])),
+            None,
+        )
+        head = head[next_h:] if next_h is not None else []
+
+    return head + tail
 
 
 def _escape_braces(text: str) -> str:

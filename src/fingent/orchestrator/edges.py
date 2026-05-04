@@ -29,9 +29,17 @@ def route_after_cache(state: AgentState) -> Literal["agent"]:
 
 def should_continue(state: AgentState) -> Literal["tools", "finalize", "end"]:
     """ReAct loop decision:
-    - last message has tool_calls and budget remains → run tools
-    - last message has tool_calls but budget exhausted → finalize
+    - last message has tool_calls and prior count under cap → run tools
+    - last message has tool_calls but PRIOR count >= cap → finalize
     - last message is a plain AI text response → end
+
+    Cap semantics: the cap stops further loop iterations, not the current
+    batch of tool calls. We compare `tool_call_count - len(last.tool_calls)`
+    (count *before* this iteration's emission) against the cap. A single
+    oversized fan-out (e.g., 12 calls when prior count was 0) therefore
+    executes in full instead of being aborted with zero executed calls —
+    the cap kicks in on the NEXT iteration if the agent tries to fan out
+    again.
     """
     messages = state.get("messages", [])
     tool_call_count = state.get("tool_call_count", 0)
@@ -41,9 +49,11 @@ def should_continue(state: AgentState) -> Literal["tools", "finalize", "end"]:
 
     last = messages[-1]
     if isinstance(last, AIMessage) and last.tool_calls:
-        if tool_call_count >= MAX_TOOL_CALLS_PER_TURN:
+        prior_count = tool_call_count - len(last.tool_calls)
+        if prior_count >= MAX_TOOL_CALLS_PER_TURN:
             logger.warning(
-                f"Tool call limit ({MAX_TOOL_CALLS_PER_TURN}) reached, routing to finalize"
+                f"Tool call limit ({MAX_TOOL_CALLS_PER_TURN}) reached "
+                f"(prior_count={prior_count}); routing to finalize"
             )
             return "finalize"
         return "tools"
